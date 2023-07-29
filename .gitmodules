@@ -1,0 +1,4 @@
+[submodule "external/elementary_visualizer"]
+	path = external/elementary_visualizer
+	url = https://github.com/gaboroszkar/elementary_visualizer.git
+	branch = dev
