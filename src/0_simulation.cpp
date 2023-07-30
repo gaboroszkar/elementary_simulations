@@ -118,7 +118,7 @@ int main(int, char **)
     glm::mat4 projection = glm::ortho(-1.0f, +1.0f, -1.0f, +1.0f);
     surface.value()->set_projection(projection);
 
-    std::string file_name("simulation.mp4");
+    std::string file_name("0_simulation.mp4");
     unsigned int bit_rate = 10000000;
     unsigned int frame_rate = 30;
     glm::uvec2 video_size(1920, 1080);

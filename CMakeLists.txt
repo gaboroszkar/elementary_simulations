@@ -41,7 +41,8 @@ function(add_simulation NAME SOURCE_FILE)
 endfunction()
 
 # Add simulations.
-add_simulation(simulation src/simulation.cpp)
+add_simulation(0_simulation src/0_simulation.cpp)
+add_simulation(1_wave_periodic src/1_wave_periodic.cpp)
 
 # Add include directories;
 # applies only to this subproject.
