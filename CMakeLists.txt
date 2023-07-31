@@ -12,7 +12,7 @@ function(add_external_subdirectories)
     # elementary_visualizer.
     set(BUILD_TESTING OFF)
     set(ELEMENTARY_VISUALIZER_BUILD_EXAMPLES OFF)
-    set(ELEMENTARY_VISUALIZER_FFMPEG_CONFIG "--enable-libsvtav1")
+    set(ELEMENTARY_VISUALIZER_FFMPEG_CONFIG "--enable-libvpx")
     set(ELEMENTARY_VISUALIZER_DIR ${PROJECT_SOURCE_DIR}/external/elementary_visualizer/)
     add_subdirectory(${ELEMENTARY_VISUALIZER_DIR})
 endfunction()

@@ -294,7 +294,7 @@ int main(int, char **)
 
     FieldState field_state(field, field);
 
-    const bool show_energy = true;
+    const bool show_energy = false;
 
     ev::SurfaceData empty_surface_data(std::vector<ev::Vertex>(), 0);
     std::vector<ev::SurfaceData> surface_datas(frames, empty_surface_data);

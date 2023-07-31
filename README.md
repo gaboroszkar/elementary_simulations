@@ -4,7 +4,7 @@ Simple simulation visualizations.
 
 ## Building
 
-Make sure you have the prerequisites installed for [Elementary visualizer](https://github.com/gaboroszkar/elementary_visualizer.git), and `libsvtav1enc-dev` (for AV1 video encoding).
+Make sure you have the prerequisites installed for [Elementary visualizer](https://github.com/gaboroszkar/elementary_visualizer.git), and `libvpx-dev` (for VP9 video encoding).
 
 Clone the repository and configure and build the project with the following commands.
 

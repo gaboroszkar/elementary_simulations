@@ -184,7 +184,7 @@ void Framework::setup_events()
                             this->video_scene->get_size(),
                             this->frame_rate,
                             this->bit_rate,
-                            AV_CODEC_ID_AV1,
+                            AV_CODEC_ID_VP9,
                             false
                         );
                     if (video)
