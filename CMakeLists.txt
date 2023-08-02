@@ -42,7 +42,7 @@ endfunction()
 
 # Add simulations.
 add_simulation(0_simulation src/0_simulation.cpp)
-add_simulation(1_wave_periodic src/1_wave_periodic.cpp)
+add_simulation(1_periodic_wave src/1_periodic_wave.cpp)
 
 # Add include directories;
 # applies only to this subproject.
