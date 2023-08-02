@@ -79,11 +79,6 @@ int Framework::run(
 {
     while (!this->window->should_close_or_invalid())
     {
-        if (this->recording && (this->frame + 1 >= this->frames))
-        {
-            this->recording = std::nullopt;
-        }
-
         this->update_slider();
 
         run_function(this->frame, this->frames, this->t());
@@ -92,7 +87,10 @@ int Framework::run(
         if (this->recording)
         {
             this->recording.value()->render(this->video_scene->render());
-            ++this->frame;
+            if ((this->frame + 1) >= this->frames)
+                this->recording = std::nullopt;
+            else
+                ++this->frame;
         }
 
         ev::poll_window_events();
