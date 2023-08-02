@@ -332,8 +332,8 @@ int main(int, char **)
     }
 
     std::string file_name(
-        show_energy ? "1_periodic_wave_energy.mp4"
-                    : "1_periodic_wave_amplitude.mp4"
+        show_energy ? "1_periodic_wave_energy.webm"
+                    : "1_periodic_wave_amplitude.webm"
     );
     unsigned int bit_rate = 10000000;
     unsigned int frame_rate = 30;
