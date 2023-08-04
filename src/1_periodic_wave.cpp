@@ -213,7 +213,6 @@ ev::SurfaceData
 {
     const glm::uvec2 size(field_state.amp.get_size());
     std::vector<ev::Vertex> vertices(size.x * size.y);
-
     for (size_t x = 0; x != size.x; ++x)
     {
         for (size_t y = 0; y < size.y; ++y)
@@ -279,6 +278,7 @@ int main(int, char **)
     const int frames = 1650;
     const size_t width = 300;
     const float dt = 0.005f;
+    const bool show_energy = false;
 
     Field field(width, width);
 
@@ -294,10 +294,9 @@ int main(int, char **)
 
     FieldState field_state(field, field);
 
-    const bool show_energy = false;
-
-    ev::SurfaceData empty_surface_data(std::vector<ev::Vertex>(), 0);
-    std::vector<ev::SurfaceData> surface_datas(frames, empty_surface_data);
+    std::vector<ev::SurfaceData> surface_datas(
+        frames, ev::SurfaceData(std::vector<ev::Vertex>(), 0)
+    );
     for (int frame = 0; frame != frames; ++frame)
     {
         surface_datas[frame] =
@@ -305,13 +304,16 @@ int main(int, char **)
         field_state = runge_kutta_iteration<FieldState>(
             0.0f, field_state, iterate_field, dt
         );
+
+        if (frame % 50 == 0)
+            std::cout << frame << std::endl;
     }
 
     std::vector<std::shared_ptr<ev::SurfaceVisual>> surfaces;
     for (int i = -1; i != 2; ++i)
     {
         auto surface = ev::SurfaceVisual::create(
-            field_state_to_surface_data(field_state, show_energy)
+            ev::SurfaceData(std::vector<ev::Vertex>(), 0)
         );
         if (!surface)
             return EXIT_FAILURE;
