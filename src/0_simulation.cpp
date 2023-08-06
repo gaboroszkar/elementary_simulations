@@ -24,7 +24,7 @@ ev::SurfaceData
         vertices[i] = ev::Vertex(position, color);
     }
 
-    return ev::SurfaceData(vertices, width, ev::SurfaceData::Mode::flat);
+    return ev::SurfaceData(vertices, width, ev::SurfaceMode::flat);
 }
 
 std::vector<float> iterate_field(

@@ -246,7 +246,7 @@ ev::SurfaceData
         }
     }
 
-    return ev::SurfaceData(vertices, size.x, ev::SurfaceData::Mode::smooth);
+    return ev::SurfaceData(vertices, size.x, ev::SurfaceMode::smooth);
 }
 
 FieldState iterate_field(const float, const FieldState &state)
