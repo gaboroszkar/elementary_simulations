@@ -294,9 +294,12 @@ int main(int, char **)
 
     FieldState field_state(field, field);
 
+    std::cout << std::endl << "Generating fields..." << std::endl << std::endl;
+
     std::vector<ev::SurfaceData> surface_datas(
         frames, ev::SurfaceData(std::vector<ev::Vertex>(), 0)
     );
+    const auto start_time = std::chrono::system_clock::now();
     for (int frame = 0; frame != frames; ++frame)
     {
         surface_datas[frame] =
@@ -305,9 +308,10 @@ int main(int, char **)
             0.0f, field_state, iterate_field, dt
         );
 
-        if (frame % 50 == 0)
-            std::cout << frame << std::endl;
+        print_progress(static_cast<float>(frame) / (frames - 1), start_time);
     }
+
+    std::cout << std::endl;
 
     std::vector<std::shared_ptr<ev::SurfaceVisual>> surfaces;
     for (int i = -1; i != 2; ++i)
@@ -351,7 +355,7 @@ int main(int, char **)
         frame_rate,
         4,
         1,
-        std::nullopt,
+        2,
         1
     );
     if (!framework)

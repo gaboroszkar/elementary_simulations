@@ -1,4 +1,45 @@
 #include <framework.hpp>
+#include <iostream>
+
+std::string seconds_format(const long seconds)
+{
+    const long displayed_seconds = seconds % 60;
+    const long minutes = (seconds - displayed_seconds) / 60;
+    std::stringstream result;
+    result << minutes << ":";
+    if (displayed_seconds < 10)
+        result << "0";
+    result << displayed_seconds;
+    return result.str();
+}
+
+void print_progress(
+    const float t, const std::chrono::system_clock::time_point start_time
+)
+{
+    using namespace std::chrono;
+    const auto now = system_clock::now();
+    const double elapsed_time = duration<double>(now - start_time).count();
+    const double full_time = (t < 0.0000001) ? 0.0 : (elapsed_time / t);
+    const long full_time_int = std::roundl(full_time);
+    const long remaining_time = std::roundl(full_time - elapsed_time);
+
+    const int length = 30;
+    const int n = std::roundl(length * t);
+    const std::string progress(n, '#');
+    const std::string progress_left(length - n, '_');
+
+    const long percent = std::roundl(100 * t);
+    std::string percent_pad(percent < 10 ? 2 : (percent < 100 ? 1 : 0), ' ');
+
+    // Erase current line.
+    std::cout << "\x1b[2K";
+
+    std::cout << "\rProgress: " << percent_pad << percent << " %  [" << progress
+              << progress_left << "]  " << seconds_format(elapsed_time) << " / "
+              << seconds_format(remaining_time) << " / "
+              << seconds_format(full_time_int) << "." << std::flush;
+}
 
 ev::Expected<std::shared_ptr<Framework>, ev::Error> Framework::create(
     const std::string &file_name,
@@ -86,11 +127,17 @@ int Framework::run(
         this->window->render(this->window_scene->render());
         if (this->recording)
         {
-            this->recording.value()->render(this->video_scene->render());
+            this->recording.value().video->render(this->video_scene->render());
             if ((this->frame + 1) >= this->frames)
+            {
+                std::cout << std::endl;
                 this->recording = std::nullopt;
+            }
             else
+            {
                 ++this->frame;
+                print_progress(this->t(), this->recording.value().start_time);
+            }
         }
 
         ev::poll_window_events();
@@ -187,15 +234,24 @@ void Framework::setup_events()
                         );
                     if (video)
                     {
-                        this->recording = video.value();
+                        this->recording = Recording(
+                            {video.value(), std::chrono::system_clock::now()}
+                        );
                         this->frame = 0;
                         this->slider_drag = false;
                         this->slider->color_0 =
                             glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
+                        std::cout << std::endl
+                                  << "Generating video..." << std::endl
+                                  << std::endl;
+                        print_progress(
+                            this->t(), this->recording.value().start_time
+                        );
                     }
                 }
                 else
                 {
+                    std::cout << std::endl;
                     this->recording = std::nullopt;
                 }
             }

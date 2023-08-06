@@ -1,10 +1,21 @@
 #ifndef SIMULATION_VISUALIZATIONS_FRAMEWORK_HPP
 #define SIMULATION_VISUALIZATIONS_FRAMEWORK_HPP
 
+#include <chrono>
 #include <elementary_visualizer/elementary_visualizer.hpp>
 #include <slider.hpp>
 
 namespace ev = elementary_visualizer;
+
+void print_progress(
+    const float t, const std::chrono::system_clock::time_point start_time
+);
+
+struct Recording
+{
+    std::shared_ptr<ev::Video> video;
+    std::chrono::system_clock::time_point start_time;
+};
 
 class Framework
 {
@@ -67,7 +78,7 @@ private:
     std::shared_ptr<Slider> slider;
     int frames;
     int frame_rate;
-    std::optional<std::shared_ptr<ev::Video>> recording;
+    std::optional<Recording> recording;
     int frame;
     bool slider_drag;
     glm::vec2 mouse_position;
