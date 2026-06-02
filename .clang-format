@@ -30,5 +30,6 @@ FixNamespaceComments: false
 IndentWidth: 4
 IndentWrappedFunctionNames: true
 PackConstructorInitializers: NextLine
+ReflowComments: false
 SpaceBeforeParens: ControlStatementsExceptControlMacros
 Standard: c++20
