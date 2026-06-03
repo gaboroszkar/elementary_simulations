@@ -135,7 +135,8 @@ const std::vector<std::pair<float, glm::vec4>> &colormap_amplitude()
     static std::vector<std::pair<float, glm::vec4>> colormap = {
         std::make_pair(-1.00f, glm::vec4(0.00f, 0.40f, 0.70f, 1.00f)),
         std::make_pair(+0.00f, glm::vec4(0.00f, 0.60f, 0.90f, 1.00f)),
-        std::make_pair(+1.00f, glm::vec4(0.30f, 0.70f, 1.00f, 1.00f))};
+        std::make_pair(+1.00f, glm::vec4(0.30f, 0.70f, 1.00f, 1.00f))
+    };
 
     return colormap;
 }
@@ -297,9 +298,9 @@ FieldState iterate_field_1(const float t, const FieldState &state)
 
 std::shared_ptr<ev::SurfaceVisual> create_surface()
 {
-    auto surface =
-        ev::SurfaceVisual::create(ev::SurfaceData(std::vector<ev::Vertex>(), 0)
-        );
+    auto surface = ev::SurfaceVisual::create(
+        ev::SurfaceData(std::vector<ev::Vertex>(), 0)
+    );
     if (!surface)
         return nullptr;
     surface.value()->set_ambient_color(glm::vec3(0.2f));

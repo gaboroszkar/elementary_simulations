@@ -37,7 +37,8 @@ public:
 
     void add_visual(std::shared_ptr<ev::Visual> visual);
 
-    int run(std::function<void(const int, const int, const float)> run_function
+    int run(
+        std::function<void(const int, const int, const float)> run_function
     );
 
     Framework(Framework &&other);

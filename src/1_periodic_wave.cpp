@@ -133,7 +133,8 @@ const std::vector<std::pair<float, glm::vec4>> &colormap_amplitude()
         std::make_pair(+0.00f, glm::vec4(1.00f, 1.00f, 1.00f, 1.00f)),
         std::make_pair(+0.33f, glm::vec4(0.55f, 0.75f, 0.85f, 1.00f)),
         std::make_pair(+0.66f, glm::vec4(0.15f, 0.30f, 0.55f, 1.00f)),
-        std::make_pair(+1.00f, glm::vec4(0.00f, 0.20f, 0.25f, 1.00f))};
+        std::make_pair(+1.00f, glm::vec4(0.00f, 0.20f, 0.25f, 1.00f))
+    };
 
     return colormap;
 }
@@ -143,7 +144,8 @@ const std::vector<std::pair<float, glm::vec4>> &colormap_energy()
     static std::vector<std::pair<float, glm::vec4>> colormap = {
         std::make_pair(+0.00f, glm::vec4(0.00f, 0.00f, 0.15f, 1.00f)),
         std::make_pair(+256.00f, glm::vec4(1.00f, 0.70f, 0.00f, 1.00f)),
-        std::make_pair(+512.00f, glm::vec4(1.00f, 1.00f, 1.00f, 1.00f))};
+        std::make_pair(+512.00f, glm::vec4(1.00f, 1.00f, 1.00f, 1.00f))
+    };
 
     return colormap;
 }
