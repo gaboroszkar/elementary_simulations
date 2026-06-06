@@ -15,15 +15,15 @@ ev::SurfaceData field_to_surface_data(
     const float l_t,
     const size_t n_x,
     const float l_x,
-    const std::vector<float> &phi,
+    const float c,
+    const std::vector<float> &phi_prev,
     const std::vector<float> &A_y,
-    const std::vector<float> &A_y_prev
+    const std::vector<float> &A_y_prev_prev
 )
 {
     std::vector<ev::Vertex> vertices(n_x * n_x);
 
     const float dt = l_t / n_t;
-    const float dy = l_x / n_x;
     const float dx = l_x / n_x;
 
     std::vector<float> visualized_field = std::vector<float>(n_x * n_x);
@@ -36,14 +36,16 @@ ev::SurfaceData field_to_surface_data(
             const int x_plus_dx = (x == (iwidth - 1)) ? 0 : (x + 1);
             const int y_minus_dy = (y == 0) ? (iwidth - 1) : (y - 1);
             const int y_plus_dy = (y == (iwidth - 1)) ? 0 : (y + 1);
+            const float E_x = -(phi_prev[y * iwidth + x_plus_dx] -
+                                phi_prev[y * iwidth + x_minus_dx]) /
+                              (2 * dx);
             const float E_y =
-                ((phi[y_plus_dy * iwidth + x] - phi[y_minus_dy * iwidth + x]) /
-                     dy +
-                 (A_y[y * iwidth + x] - A_y_prev[y * iwidth + x]) / (2 * dt));
-            const float E_x =
-                (phi[y * iwidth + x_plus_dx] - phi[y * iwidth + x_minus_dx]) /
-                dx;
-            visualized_field[y * iwidth + x] = E_y * E_y + E_x * E_x;
+                -((phi_prev[y_plus_dy * iwidth + x] -
+                   phi_prev[y_minus_dy * iwidth + x]) /
+                      (2 * dx) +
+                  (A_y[y * iwidth + x] - A_y_prev_prev[y * iwidth + x]) /
+                      (2 * dt) / c);
+            visualized_field[y * iwidth + x] = E_x * E_x + E_y * E_y;
         }
     }
 
@@ -74,19 +76,27 @@ std::vector<float> iterate_potential(
     bool electric_and_not_magnetic_potential
 )
 {
+    // In Gaussian units the equations are
+    // d_mu d^mu phi = 4 * pi * rho
+    // d_mu d^mu A = 4 * pi * j / c.
+
     const float dt = l_t / n_t;
 
     const float dx = l_x / n_x;
-    const float nu = c * dt / dx;
+    const float nu = c * dt / dx; // Courant number.
     const float nu_sq = nu * nu;
 
     const int iwidth = n_x;
 
-    const float source_amp = 0.003f * (electric_and_not_magnetic_potential
-                                           ? 1.0f
-                                           : 1.5f * std::cos(0.3f * t) / c);
+    const float source_omega = 0.3f;
+    const float source_v = 1.5f;
+    const float source_amp =
+        0.003f * (electric_and_not_magnetic_potential
+                      ? 1.0f
+                      : source_v * std::cos(source_omega * t) / c);
     const float source_x = static_cast<float>(iwidth) / 2.0f;
-    const float source_y = source_x + 5.0f * std::sin(0.3f * t);
+    const float source_y =
+        source_x + (source_v / source_omega) * std::sin(source_omega * t);
     const float source_r = 4.0f;
     std::vector<float> source = std::vector<float>(n_x * n_x);
     for (int x = 0; x != iwidth; ++x)
@@ -113,27 +123,14 @@ std::vector<float> iterate_potential(
             const int y_minus_dy = (y == 0) ? (iwidth - 1) : (y - 1);
             const int y_plus_dy = (y == (iwidth - 1)) ? 0 : (y + 1);
 
-            const int sponge_r = std::min(
-                std::min(std::abs(x), std::abs(iwidth - x)),
-                std::min(std::abs(y), std::abs(iwidth - y))
-            );
-            const float sponge_width = 30.0f;
-            const float sponge_sigma =
-                0.01f *
-                std::pow(
-                    std::max(0.0f, 10.0f * (1.0f - sponge_r / sponge_width)), 2
-                );
-            const float sponge_gamma = sponge_sigma * dt / 2.0f;
-
             new_field[y * iwidth + x] =
-                (1.0f / (1.0f + sponge_gamma)) *
-                    (nu_sq * (field[y * iwidth + x_minus_dx] +
-                              field[y * iwidth + x_plus_dx] +
-                              field[y_minus_dy * iwidth + x] +
-                              field[y_plus_dy * iwidth + x] -
-                              4.0f * field[y * iwidth + x]) +
-                     2.0f * field[y * iwidth + x] -
-                     (1.0f - sponge_gamma) * previous_field[y * iwidth + x]) +
+                (nu_sq * (field[y * iwidth + x_minus_dx] +
+                          field[y * iwidth + x_plus_dx] +
+                          field[y_minus_dy * iwidth + x] +
+                          field[y_plus_dy * iwidth + x] -
+                          4.0f * field[y * iwidth + x]) +
+                 2.0f * field[y * iwidth + x] -
+                 previous_field[y * iwidth + x]) +
                 source[y * iwidth + x];
         }
     }
@@ -175,7 +172,7 @@ std::vector<ev::SurfaceData> generate_surface_datas(
         A_y = A_y_next;
 
         surface_datas.push_back(field_to_surface_data(
-            n_t, l_t, n_x, l_x, phi_prev, A_y, A_y_prev_prev
+            n_t, l_t, n_x, l_x, c, phi_prev, A_y, A_y_prev_prev
         ));
 
         print_progress(static_cast<float>(frame) / (n_t - 1), start_time);
