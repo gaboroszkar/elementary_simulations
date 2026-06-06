@@ -8,21 +8,26 @@
 
 namespace ev = elementary_visualizer;
 
+int visualize_surface_datas(const std::vector<ev::SurfaceData> &surface_datas);
+
 ev::SurfaceData field_to_surface_data(
-    const size_t width,
-    const std::vector<float> &previous_electric_potential,
-    const std::vector<float> &magnetic_potential,
-    const std::vector<float> &previous_magnetic_potential
+    const int n_t,
+    const float l_t,
+    const size_t n_x,
+    const float l_x,
+    const std::vector<float> &phi,
+    const std::vector<float> &A_y,
+    const std::vector<float> &A_y_prev
 )
 {
-    std::vector<ev::Vertex> vertices(width * width);
+    std::vector<ev::Vertex> vertices(n_x * n_x);
 
-    const float dt = 0.1f;
-    const float dy = 1.0f;
-    const float dx = 1.0f;
+    const float dt = l_t / n_t;
+    const float dy = l_x / n_x;
+    const float dx = l_x / n_x;
 
-    std::vector<float> new_field = std::vector<float>(width * width);
-    const int iwidth = width;
+    std::vector<float> visualized_field = std::vector<float>(n_x * n_x);
+    const int iwidth = n_x;
     for (int x = 0; x != iwidth; ++x)
     {
         for (int y = 0; y != iwidth; ++y)
@@ -31,66 +36,51 @@ ev::SurfaceData field_to_surface_data(
             const int x_plus_dx = (x == (iwidth - 1)) ? 0 : (x + 1);
             const int y_minus_dy = (y == 0) ? (iwidth - 1) : (y - 1);
             const int y_plus_dy = (y == (iwidth - 1)) ? 0 : (y + 1);
-            new_field[y * iwidth + x] = 0.0f;
-            //new_field[y * iwidth + x] +=
-            //    (electric_potential[y_plus_dy * iwidth + x] -
-            //     electric_potential[y_minus_dy * iwidth + x]) /
-            //    (2 * dy);
             const float E_y =
-                (((previous_electric_potential[y_plus_dy * iwidth + x] -
-                   previous_electric_potential[y_minus_dy * iwidth + x]) /
-                  (dy)) +
-                 ((magnetic_potential[y * iwidth + x] -
-                   previous_magnetic_potential[y * iwidth + x]) /
-                  (2 * dt)));
+                ((phi[y_plus_dy * iwidth + x] - phi[y_minus_dy * iwidth + x]) /
+                     dy +
+                 (A_y[y * iwidth + x] - A_y_prev[y * iwidth + x]) / (2 * dt));
             const float E_x =
-                ((previous_electric_potential[y * iwidth + x_plus_dx] -
-                  previous_electric_potential[y * iwidth + x_minus_dx]) /
-                 (dx));
-            new_field[y * iwidth + x] = E_y * E_y + E_x * E_x;
+                (phi[y * iwidth + x_plus_dx] - phi[y * iwidth + x_minus_dx]) /
+                dx;
+            visualized_field[y * iwidth + x] = E_y * E_y + E_x * E_x;
         }
     }
 
-    for (size_t i = 0; i < new_field.size(); ++i)
+    for (size_t i = 0; i < visualized_field.size(); ++i)
     {
-        //const float v =
-        //    1.0f - 0.5f * (0.5f + 5.0f * new_field[i] * new_field[i]);
-        const float v = 600.0f * new_field[i];
+        const float v = 600.0f * visualized_field[i];
         glm::vec4 color(v, v, v, 1.0f);
 
-        size_t u = i % width;
-        float x = 2.0f * static_cast<float>(u) / (width - 1) - 1.0f;
-        float y =
-            -2.0f * static_cast<float>((i - u) / width) / (width - 1) + 1.0f;
+        size_t u = i % n_x;
+        float x = 2.0f * static_cast<float>(u) / (n_x - 1) - 1.0f;
+        float y = -2.0f * static_cast<float>((i - u) / n_x) / (n_x - 1) + 1.0f;
         glm::vec3 position(x, y, 0.0f);
         vertices[i] = ev::Vertex(position, color);
     }
 
-    return ev::SurfaceData(vertices, width, ev::SurfaceMode::flat);
+    return ev::SurfaceData(vertices, n_x, ev::SurfaceMode::flat);
 }
 
 std::vector<float> iterate_potential(
-    const size_t width,
+    const int n_t,
+    const float l_t,
+    const size_t n_x,
+    const float l_x,
+    const float c,
+    const float t,
     std::vector<float> field,
     std::vector<float> previous_field,
-    int frame,
     bool electric_and_not_magnetic_potential
 )
 {
-    const float c = 2.0f;
-    const float dt = 0.1f;
+    const float dt = l_t / n_t;
 
-    const float dx = 1.0f;
-    const float rx = c * dt / dx;
-    const float rx_sq = rx * rx;
+    const float dx = l_x / n_x;
+    const float nu = c * dt / dx;
+    const float nu_sq = nu * nu;
 
-    const float dy = 1.0f;
-    const float ry = c * dt / dy;
-    const float ry_sq = ry * ry;
-
-    const float t = static_cast<float>(frame) * dt;
-
-    const int iwidth = width;
+    const int iwidth = n_x;
 
     const float source_amp = 0.003f * (electric_and_not_magnetic_potential
                                            ? 1.0f
@@ -98,7 +88,7 @@ std::vector<float> iterate_potential(
     const float source_x = static_cast<float>(iwidth) / 2.0f;
     const float source_y = source_x + 5.0f * std::sin(0.3f * t);
     const float source_r = 4.0f;
-    std::vector<float> source = std::vector<float>(width * width);
+    std::vector<float> source = std::vector<float>(n_x * n_x);
     for (int x = 0; x != iwidth; ++x)
     {
         for (int y = 0; y != iwidth; ++y)
@@ -113,7 +103,7 @@ std::vector<float> iterate_potential(
         }
     }
 
-    std::vector<float> new_field = std::vector<float>(width * width);
+    std::vector<float> new_field = std::vector<float>(n_x * n_x);
     for (int x = 0; x != iwidth; ++x)
     {
         for (int y = 0; y != iwidth; ++y)
@@ -137,11 +127,12 @@ std::vector<float> iterate_potential(
 
             new_field[y * iwidth + x] =
                 (1.0f / (1.0f + sponge_gamma)) *
-                    (rx_sq * (field[y * iwidth + x_minus_dx] +
-                              field[y * iwidth + x_plus_dx]) +
-                     ry_sq * (field[y_minus_dy * iwidth + x] +
-                              field[y_plus_dy * iwidth + x]) +
-                     2.0f * (1.0f - rx_sq - ry_sq) * field[y * iwidth + x] -
+                    (nu_sq * (field[y * iwidth + x_minus_dx] +
+                              field[y * iwidth + x_plus_dx] +
+                              field[y_minus_dy * iwidth + x] +
+                              field[y_plus_dy * iwidth + x] -
+                              4.0f * field[y * iwidth + x]) +
+                     2.0f * field[y * iwidth + x] -
                      (1.0f - sponge_gamma) * previous_field[y * iwidth + x]) +
                 source[y * iwidth + x];
         }
@@ -150,63 +141,75 @@ std::vector<float> iterate_potential(
     return new_field;
 }
 
-int main(int, char **)
+std::vector<ev::SurfaceData> generate_surface_datas(
+    const int n_t,
+    const float l_t,
+    const size_t n_x,
+    const float l_x,
+    const float c
+)
 {
-    const int frames = 1000;
+    // Electric scalar potential.
+    std::vector<float> phi(n_x * n_x, 0.0f);
+    std::vector<float> phi_prev(n_x * n_x, 0.0f);
 
-    const size_t width = 300;
-    std::vector<float> current_electric_potential(width * width, 0.0f);
-    std::vector<float> current_magnetic_potential(width * width, 0.0f);
+    // Magnetic vector potential.
+    std::vector<float> A_y(n_x * n_x, 0.0f);
+    std::vector<float> A_y_prev(n_x * n_x, 0.0f);
 
-    std::vector<float> previous_electric_potential = current_electric_potential;
-    std::vector<float> previous_magnetic_potential = current_magnetic_potential;
-
-    const auto start_time = std::chrono::system_clock::now();
     std::vector<ev::SurfaceData> surface_datas;
-    for (int frame = 0; frame != frames; ++frame)
+    const auto start_time = std::chrono::system_clock::now();
+    for (int frame = 0; frame != n_t; ++frame)
     {
-        const float t = static_cast<float>(frame) / (frames - 1);
+        const float t = static_cast<float>(frame) * l_t / (n_t - 1);
 
-        std::vector<float> new_electric_potential = iterate_potential(
-            width,
-            current_electric_potential,
-            previous_electric_potential,
-            frame,
-            true
-        );
-        std::vector<float> previous_previous_electric_potential =
-            previous_electric_potential;
-        previous_electric_potential = current_electric_potential;
-        current_electric_potential = new_electric_potential;
+        std::vector<float> phi_next =
+            iterate_potential(n_t, l_t, n_x, l_x, c, t, phi, phi_prev, true);
+        phi_prev = phi;
+        phi = phi_next;
 
-        std::vector<float> new_magnetic_potential = iterate_potential(
-            width,
-            current_magnetic_potential,
-            previous_magnetic_potential,
-            frame,
-            false
-        );
-        std::vector<float> previous_previous_magnetic_potential =
-            previous_magnetic_potential;
-        previous_magnetic_potential = current_magnetic_potential;
-        current_magnetic_potential = new_magnetic_potential;
+        std::vector<float> A_y_next =
+            iterate_potential(n_t, l_t, n_x, l_x, c, t, A_y, A_y_prev, false);
+        std::vector<float> A_y_prev_prev = A_y_prev;
+        A_y_prev = A_y;
+        A_y = A_y_next;
 
         surface_datas.push_back(field_to_surface_data(
-            width,
-            previous_electric_potential,
-            current_magnetic_potential,
-            previous_previous_magnetic_potential
+            n_t, l_t, n_x, l_x, phi_prev, A_y, A_y_prev_prev
         ));
 
-        print_progress(t, start_time);
+        print_progress(static_cast<float>(frame) / (n_t - 1), start_time);
     }
 
-    auto surface = ev::SurfaceVisual::create(field_to_surface_data(
-        width,
-        previous_electric_potential,
-        current_magnetic_potential,
-        previous_magnetic_potential
-    ));
+    return surface_datas;
+}
+
+int main(int, char **)
+{
+    // Setup parameters of the simulation.
+
+    const int n_t = 1000;
+    const float l_t = 100.0f;
+
+    const size_t n_x = 250;
+    const float l_x = 250.0f;
+
+    const float c = 2.0f;
+
+    // Running the simulation.
+    const std::vector<ev::SurfaceData> surface_datas =
+        generate_surface_datas(n_t, l_t, n_x, l_x, c);
+
+    // Visualizing the simulation.
+    return visualize_surface_datas(surface_datas);
+}
+
+int visualize_surface_datas(const std::vector<ev::SurfaceData> &surface_datas)
+{
+    if (surface_datas.size() == 0)
+        return EXIT_FAILURE;
+
+    auto surface = ev::SurfaceVisual::create(surface_datas[0]);
     if (!surface)
         return EXIT_FAILURE;
     surface.value()->set_ambient_color(glm::vec3(1.0f));
@@ -229,17 +232,15 @@ int main(int, char **)
         video_size,
         window_size,
         glm::vec4(1.0f),
-        frames,
+        surface_datas.size(),
         frame_rate
     );
     if (!framework)
         return EXIT_FAILURE;
     framework.value()->add_visual(surface.value());
 
-    int run_result = framework.value()->run(
+    return framework.value()->run(
         [&](const int frame, const int, const float)
         { surface.value()->set_surface_data(surface_datas[frame]); }
     );
-
-    return run_result;
 }
