@@ -44,6 +44,7 @@ endfunction()
 add_simulation(0_simulation src/0_simulation.cpp)
 add_simulation(1_periodic_wave src/1_periodic_wave.cpp)
 add_simulation(2_boundary_conditions src/2_boundary_conditions.cpp)
+add_simulation(3_charged_particle src/3_charged_particle.cpp)
 
 # Add include directories;
 # applies only to this subproject.
