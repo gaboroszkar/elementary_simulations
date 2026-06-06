@@ -79,6 +79,8 @@ std::vector<float> iterate_potential(
     // In Gaussian units the equations are
     // d_mu d^mu phi = 4 * pi * rho
     // d_mu d^mu A = 4 * pi * j / c.
+    // Note, here x means the radial coordinate.
+    // TODO: verify the correctness of the calculation.
 
     const float dt = l_t / n_t;
 
@@ -88,27 +90,58 @@ std::vector<float> iterate_potential(
 
     const int iwidth = n_x;
 
-    const float source_omega = 0.3f;
-    const float source_v = 1.5f;
+    const float source_omega = 0.1f;
+    const float source_phase = std::numbers::pi / 2.0f;
+    const float source_v = 0.5f;
     const float source_amp =
-        0.003f * (electric_and_not_magnetic_potential
-                      ? 1.0f
-                      : source_v * std::cos(source_omega * t) / c);
-    const float source_x = static_cast<float>(iwidth) / 2.0f;
-    const float source_y =
-        source_x + (source_v / source_omega) * std::sin(source_omega * t);
-    const float source_r = 4.0f;
+        (t < 0.1f * l_t ? t / (0.1f * l_t) : 1.0f) * 0.2f *
+        (electric_and_not_magnetic_potential
+             ? 1.0f
+             : source_v * std::cos(source_omega * t + source_phase) / c);
+    const float source_movement_amp = source_v / source_omega;
+    const float source_x = 0.0f;
+    const float source_y = l_x / 2.0f;
+    const float source_dy =
+        source_movement_amp * std::sin(source_omega * t + source_phase);
+    const float source_r = 5.0f;
     std::vector<float> source = std::vector<float>(n_x * n_x);
     for (int x = 0; x != iwidth; ++x)
     {
         for (int y = 0; y != iwidth; ++y)
         {
-            const float r = std::sqrt(
-                std::pow(source_x - x, 2) + std::pow(source_y - y, 2)
+            const float r1 = std::sqrt(
+                std::pow(source_x - x * dx, 2) +
+                std::pow(
+                    (source_y + 2.0f * source_movement_amp + source_dy) -
+                        y * dx,
+                    2
+                )
             );
-            if (r <= source_r)
+            const float r2 = std::sqrt(
+                std::pow(source_x - x * dx, 2) +
+                std::pow(
+                    (source_y - 2.0f * source_movement_amp - source_dy) -
+                        y * dx,
+                    2
+                )
+            );
+            const float sigma = 0.4;
+            const float sq2 = std::sqrt(2.0f);
+            const float sq2pi = std::sqrt(2.0f * std::numbers::pi);
+            if (r1 <= source_r)
             {
-                source[y * iwidth + x] = source_amp * (1.0f - r / source_r);
+                source[y * iwidth + x] +=
+                    source_amp *
+                    std::exp(-std::pow(r1 / source_r / (sq2 * sigma), 2)) /
+                    (sigma * sq2pi);
+            }
+            if (r2 <= source_r)
+            {
+                source[y * iwidth + x] -=
+                    (electric_and_not_magnetic_potential ? 1.0f : -1.0f) *
+                    source_amp *
+                    std::exp(-std::pow(r2 / source_r / (sq2 * sigma), 2)) /
+                    (sigma * sq2pi);
             }
         }
     }
@@ -118,20 +151,52 @@ std::vector<float> iterate_potential(
     {
         for (int y = 0; y != iwidth; ++y)
         {
-            const int x_minus_dx = (x == 0) ? (iwidth - 1) : (x - 1);
-            const int x_plus_dx = (x == (iwidth - 1)) ? 0 : (x + 1);
+            const int x_minus_dx = (x == 0) ? 0 : (x - 1);
+            const int x_plus_dx = (x == (iwidth - 1)) ? (iwidth - 1) : (x + 1);
             const int y_minus_dy = (y == 0) ? (iwidth - 1) : (y - 1);
             const int y_plus_dy = (y == (iwidth - 1)) ? 0 : (y + 1);
 
-            new_field[y * iwidth + x] =
-                (nu_sq * (field[y * iwidth + x_minus_dx] +
-                          field[y * iwidth + x_plus_dx] +
-                          field[y_minus_dy * iwidth + x] +
-                          field[y_plus_dy * iwidth + x] -
-                          4.0f * field[y * iwidth + x]) +
-                 2.0f * field[y * iwidth + x] -
-                 previous_field[y * iwidth + x]) +
-                source[y * iwidth + x];
+            const int sponge_r = std::min(
+                std::abs(l_x - x * dx),
+                std::min(std::abs(y * dx), std::abs(l_x - y * dx))
+            );
+            const float sponge_width = 0.3f * l_x;
+            const float sponge_sigma =
+                0.050f *
+                std::pow(
+                    std::max(0.0f, 2.0f * (1.0f - sponge_r / sponge_width)), 3
+                );
+            const float sponge_gamma = sponge_sigma * dt / 2.0f;
+
+            if (x == 0)
+            {
+                new_field[y * iwidth + x] =
+                    (1.0f / (1.0f + sponge_gamma)) *
+                        (nu_sq * (4.0f * field[y * iwidth + 1] -
+                                  6.0f * field[y * iwidth + x] +
+                                  field[y_minus_dy * iwidth + x] +
+                                  field[y_plus_dy * iwidth + x]) +
+                         2.0f * field[y * iwidth + x] -
+                         (1.0f - sponge_gamma) *
+                             previous_field[y * iwidth + x]) +
+                    source[y * iwidth + x] * dt * dt;
+            }
+            else
+            {
+                new_field[y * iwidth + x] =
+                    (1.0f / (1.0f + sponge_gamma)) *
+                        (nu_sq * ((1.0f + 1.0f / (2.0f * x)) *
+                                      field[y * iwidth + x_minus_dx] +
+                                  (1.0f - 1.0f / (2.0f * x)) *
+                                      field[y * iwidth + x_plus_dx] +
+                                  field[y_minus_dy * iwidth + x] +
+                                  field[y_plus_dy * iwidth + x] -
+                                  4.0f * field[y * iwidth + x]) +
+                         2.0f * field[y * iwidth + x] -
+                         (1.0f - sponge_gamma) *
+                             previous_field[y * iwidth + x]) +
+                    source[y * iwidth + x] * dt * dt;
+            }
         }
     }
 
@@ -186,10 +251,10 @@ int main(int, char **)
     // Setup parameters of the simulation.
 
     const int n_t = 1000;
-    const float l_t = 100.0f;
+    const float l_t = 200.0f;
 
     const size_t n_x = 250;
-    const float l_x = 250.0f;
+    const float l_x = 500.0f;
 
     const float c = 2.0f;
 
