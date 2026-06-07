@@ -18,6 +18,7 @@ std::vector<float> potentials_to_visualized_field(
     const size_t n_x,
     const float l_x,
     const float c,
+    const int sponge_width,
     const std::vector<float> &phi_prev,
     const std::vector<float> &A_y,
     const std::vector<float> &A_y_prev_prev
@@ -26,26 +27,32 @@ std::vector<float> potentials_to_visualized_field(
     const float dt = l_t / n_t;
     const float dx = l_x / n_x;
 
-    std::vector<float> visualized_field = std::vector<float>(n_x * n_x);
+    // We cut off the sponge from the visualized field.
+    std::vector<float> visualized_field =
+        std::vector<float>((n_x - 2 * sponge_width) * (n_x - 2 * sponge_width));
     const int iwidth = n_x;
-    for (int x = 0; x != iwidth; ++x)
+    for (int x = 0; x != iwidth - 2 * sponge_width; ++x)
     {
-        for (int y = 0; y != iwidth; ++y)
+        for (int y = sponge_width; y != iwidth - sponge_width; ++y)
         {
-            //const int x_minus_dx = (x == 0) ? (iwidth - 1) : (x - 1);
-            //const int x_plus_dx = (x == (iwidth - 1)) ? 0 : (x + 1);
+            const int x_minus_dx = (x == 0) ? 0 : (x - 1);
+            const int x_plus_dx = (x == (iwidth - 1)) ? (iwidth - 1) : (x + 1);
             const int y_minus_dy = (y == 0) ? (iwidth - 1) : (y - 1);
             const int y_plus_dy = (y == (iwidth - 1)) ? 0 : (y + 1);
-            //const float E_x = -(phi_prev[y * iwidth + x_plus_dx] -
-            //                    phi_prev[y * iwidth + x_minus_dx]) /
-            //                  (2 * dx);
+            const float E_x = -(phi_prev[y * iwidth + x_plus_dx] -
+                                phi_prev[y * iwidth + x_minus_dx]) /
+                              (2 * dx);
             const float E_y =
                 -((phi_prev[y_plus_dy * iwidth + x] -
                    phi_prev[y_minus_dy * iwidth + x]) /
                       (2 * dx) +
                   (A_y[y * iwidth + x] - A_y_prev_prev[y * iwidth + x]) /
                       (2 * dt) / c);
-            visualized_field[y * iwidth + x] = E_y;
+            const int visualized_field_index =
+                (y - sponge_width) * (iwidth - 2 * sponge_width) + x;
+            //visualized_field[visualized_field_index] = E_x;
+            //visualized_field[visualized_field_index] = E_y;
+            visualized_field[visualized_field_index] = E_x * E_x + E_y * E_y;
         }
     }
 
@@ -60,7 +67,8 @@ ev::SurfaceData visualized_field_to_surface_data(
 
     for (size_t i = 0; i < visualized_field.size(); ++i)
     {
-        const float v = 20.0f * visualized_field[i] + 0.5f;
+        //const float v = 20.0f * visualized_field[i] + 0.5f;
+        const float v = 20000.0f * visualized_field[i];
         glm::vec4 color(v, v, v, 1.0f);
 
         size_t u = i % n_x;
@@ -82,14 +90,14 @@ std::vector<float> iterate_potential(
     const float t,
     std::vector<float> field,
     std::vector<float> previous_field,
-    bool electric_and_not_magnetic_potential
+    bool electric_and_not_magnetic_potential,
+    const int sponge_width
 )
 {
     // In Gaussian units the equations are
     // d_mu d^mu phi = 4 * pi * rho
     // d_mu d^mu A = 4 * pi * j / c.
     // Note, here x means the radial coordinate.
-    // TODO: verify the correctness of the calculation.
 
     const float dt = l_t / n_t;
 
@@ -120,19 +128,11 @@ std::vector<float> iterate_potential(
         {
             const float r1 = std::sqrt(
                 std::pow(source_x - x * dx, 2) +
-                std::pow(
-                    //(source_y + 1.5f * source_movement_amp + source_dy) -
-                    (source_y + source_dy) - y * dx,
-                    2
-                )
+                std::pow((source_y + source_dy) - y * dx, 2)
             );
             const float r2 = std::sqrt(
                 std::pow(source_x - x * dx, 2) +
-                std::pow(
-                    //(source_y - 1.5f * source_movement_amp - source_dy) -
-                    (source_y - source_dy) - y * dx,
-                    2
-                )
+                std::pow((source_y - source_dy) - y * dx, 2)
             );
             const float sigma = 0.3;
             const float sq2 = std::sqrt(2.0f);
@@ -169,11 +169,13 @@ std::vector<float> iterate_potential(
                 std::abs(l_x - x * dx),
                 std::min(std::abs(y * dx), std::abs(l_x - y * dx))
             );
-            const float sponge_width = 0.175f * l_x;
             const float sponge_sigma =
                 0.00225f *
                 std::pow(
-                    std::max(0.0f, 10.0f * (1.0f - sponge_r / sponge_width)), 2
+                    std::max(
+                        0.0f, 10.0f * (1.0f - sponge_r / (sponge_width * dx))
+                    ),
+                    2
                 );
             const float sponge_gamma = sponge_sigma * dt / 2.0f;
 
@@ -204,7 +206,8 @@ std::vector<std::vector<float>> generate_visualized_field(
     const float l_t,
     const size_t n_x,
     const float l_x,
-    const float c
+    const float c,
+    const int sponge_width
 )
 {
     // Electric scalar potential.
@@ -221,19 +224,21 @@ std::vector<std::vector<float>> generate_visualized_field(
     {
         const float t = static_cast<float>(frame) * l_t / (n_t - 1);
 
-        std::vector<float> phi_next =
-            iterate_potential(n_t, l_t, n_x, l_x, c, t, phi, phi_prev, true);
+        std::vector<float> phi_next = iterate_potential(
+            n_t, l_t, n_x, l_x, c, t, phi, phi_prev, true, sponge_width
+        );
         phi_prev = phi;
         phi = phi_next;
 
-        std::vector<float> A_y_next =
-            iterate_potential(n_t, l_t, n_x, l_x, c, t, A_y, A_y_prev, false);
+        std::vector<float> A_y_next = iterate_potential(
+            n_t, l_t, n_x, l_x, c, t, A_y, A_y_prev, false, sponge_width
+        );
         std::vector<float> A_y_prev_prev = A_y_prev;
         A_y_prev = A_y;
         A_y = A_y_next;
 
         visualized_fields.push_back(potentials_to_visualized_field(
-            n_t, l_t, n_x, l_x, c, phi_prev, A_y, A_y_prev_prev
+            n_t, l_t, n_x, l_x, c, sponge_width, phi_prev, A_y, A_y_prev_prev
         ));
 
         print_progress(static_cast<float>(frame) / (n_t - 1), start_time);
@@ -254,12 +259,14 @@ int main(int, char **)
 
     const float c = 2.0f;
 
+    const int sponge_width = 120;
+
     // Running the simulation.
     const std::vector<std::vector<float>> visualized_fields =
-        generate_visualized_field(n_t, l_t, n_x, l_x, c);
+        generate_visualized_field(n_t, l_t, n_x, l_x, c, sponge_width);
 
     // Visualizing the simulation.
-    return visualize_field(visualized_fields, n_x);
+    return visualize_field(visualized_fields, n_x - 2 * sponge_width);
 }
 
 int visualize_field(
