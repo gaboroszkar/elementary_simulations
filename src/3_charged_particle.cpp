@@ -32,26 +32,26 @@ ev::SurfaceData field_to_surface_data(
     {
         for (int y = 0; y != iwidth; ++y)
         {
-            const int x_minus_dx = (x == 0) ? (iwidth - 1) : (x - 1);
-            const int x_plus_dx = (x == (iwidth - 1)) ? 0 : (x + 1);
+            //const int x_minus_dx = (x == 0) ? (iwidth - 1) : (x - 1);
+            //const int x_plus_dx = (x == (iwidth - 1)) ? 0 : (x + 1);
             const int y_minus_dy = (y == 0) ? (iwidth - 1) : (y - 1);
             const int y_plus_dy = (y == (iwidth - 1)) ? 0 : (y + 1);
-            const float E_x = -(phi_prev[y * iwidth + x_plus_dx] -
-                                phi_prev[y * iwidth + x_minus_dx]) /
-                              (2 * dx);
+            //const float E_x = -(phi_prev[y * iwidth + x_plus_dx] -
+            //                    phi_prev[y * iwidth + x_minus_dx]) /
+            //                  (2 * dx);
             const float E_y =
                 -((phi_prev[y_plus_dy * iwidth + x] -
                    phi_prev[y_minus_dy * iwidth + x]) /
                       (2 * dx) +
                   (A_y[y * iwidth + x] - A_y_prev_prev[y * iwidth + x]) /
                       (2 * dt) / c);
-            visualized_field[y * iwidth + x] = E_x * E_x + E_y * E_y;
+            visualized_field[y * iwidth + x] = E_y;
         }
     }
 
     for (size_t i = 0; i < visualized_field.size(); ++i)
     {
-        const float v = 600.0f * visualized_field[i];
+        const float v = 100.0f * visualized_field[i];
         glm::vec4 color(v, v, v, 1.0f);
 
         size_t u = i % n_x;
@@ -94,7 +94,7 @@ std::vector<float> iterate_potential(
     const float source_phase = std::numbers::pi / 2.0f;
     const float source_v = 0.5f;
     const float source_amp =
-        (t < 0.1f * l_t ? t / (0.1f * l_t) : 1.0f) * 0.2f *
+        (t < 0.1f * l_t ? t / (0.1f * l_t) : 1.0f) * 2.0f *
         (electric_and_not_magnetic_potential
              ? 1.0f
              : source_v * std::cos(source_omega * t + source_phase) / c);
@@ -112,16 +112,16 @@ std::vector<float> iterate_potential(
             const float r1 = std::sqrt(
                 std::pow(source_x - x * dx, 2) +
                 std::pow(
-                    (source_y + 2.0f * source_movement_amp + source_dy) -
-                        y * dx,
+                    //(source_y + 1.5f * source_movement_amp + source_dy) -
+                    (source_y + source_dy) - y * dx,
                     2
                 )
             );
             const float r2 = std::sqrt(
                 std::pow(source_x - x * dx, 2) +
                 std::pow(
-                    (source_y - 2.0f * source_movement_amp - source_dy) -
-                        y * dx,
+                    //(source_y - 1.5f * source_movement_amp - source_dy) -
+                    (source_y - source_dy) - y * dx,
                     2
                 )
             );
@@ -160,11 +160,11 @@ std::vector<float> iterate_potential(
                 std::abs(l_x - x * dx),
                 std::min(std::abs(y * dx), std::abs(l_x - y * dx))
             );
-            const float sponge_width = 0.3f * l_x;
+            const float sponge_width = 0.2f * l_x;
             const float sponge_sigma =
                 0.050f *
                 std::pow(
-                    std::max(0.0f, 2.0f * (1.0f - sponge_r / sponge_width)), 3
+                    std::max(0.0f, 3.0f * (1.0f - sponge_r / sponge_width)), 3
                 );
             const float sponge_gamma = sponge_sigma * dt / 2.0f;
 
@@ -172,30 +172,28 @@ std::vector<float> iterate_potential(
             {
                 new_field[y * iwidth + x] =
                     (1.0f / (1.0f + sponge_gamma)) *
-                        (nu_sq * (4.0f * field[y * iwidth + 1] -
-                                  6.0f * field[y * iwidth + x] +
+                        (nu_sq * (4 * field[y * iwidth + x_plus_dx] +
                                   field[y_minus_dy * iwidth + x] +
                                   field[y_plus_dy * iwidth + x]) +
-                         2.0f * field[y * iwidth + x] -
+                         2.0f * (1.0f - 3.0f * nu_sq) * field[y * iwidth + x] -
                          (1.0f - sponge_gamma) *
                              previous_field[y * iwidth + x]) +
-                    source[y * iwidth + x] * dt * dt;
+                    source[y * iwidth + x] * dt * dt * c * c;
             }
             else
             {
                 new_field[y * iwidth + x] =
                     (1.0f / (1.0f + sponge_gamma)) *
                         (nu_sq * ((1.0f + 1.0f / (2.0f * x)) *
-                                      field[y * iwidth + x_minus_dx] +
-                                  (1.0f - 1.0f / (2.0f * x)) *
                                       field[y * iwidth + x_plus_dx] +
+                                  (1.0f - 1.0f / (2.0f * x)) *
+                                      field[y * iwidth + x_minus_dx] +
                                   field[y_minus_dy * iwidth + x] +
-                                  field[y_plus_dy * iwidth + x] -
-                                  4.0f * field[y * iwidth + x]) +
-                         2.0f * field[y * iwidth + x] -
+                                  field[y_plus_dy * iwidth + x]) +
+                         2.0f * (1.0f - 2.0f * nu_sq) * field[y * iwidth + x] -
                          (1.0f - sponge_gamma) *
                              previous_field[y * iwidth + x]) +
-                    source[y * iwidth + x] * dt * dt;
+                    source[y * iwidth + x] * dt * dt * c * c;
             }
         }
     }
@@ -250,10 +248,10 @@ int main(int, char **)
 {
     // Setup parameters of the simulation.
 
-    const int n_t = 1000;
+    const int n_t = 500;
     const float l_t = 200.0f;
 
-    const size_t n_x = 250;
+    const size_t n_x = 350;
     const float l_x = 500.0f;
 
     const float c = 2.0f;
