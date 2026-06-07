@@ -8,9 +8,11 @@
 
 namespace ev = elementary_visualizer;
 
-int visualize_surface_datas(const std::vector<ev::SurfaceData> &surface_datas);
+int visualize_field(
+    const std::vector<std::vector<float>> &visualized_fields, const size_t n_x
+);
 
-ev::SurfaceData field_to_surface_data(
+std::vector<float> potentials_to_visualized_field(
     const int n_t,
     const float l_t,
     const size_t n_x,
@@ -21,8 +23,6 @@ ev::SurfaceData field_to_surface_data(
     const std::vector<float> &A_y_prev_prev
 )
 {
-    std::vector<ev::Vertex> vertices(n_x * n_x);
-
     const float dt = l_t / n_t;
     const float dx = l_x / n_x;
 
@@ -48,6 +48,15 @@ ev::SurfaceData field_to_surface_data(
             visualized_field[y * iwidth + x] = E_y;
         }
     }
+
+    return visualized_field;
+}
+
+ev::SurfaceData visualized_field_to_surface_data(
+    const std::vector<float> &visualized_field, const size_t n_x
+)
+{
+    std::vector<ev::Vertex> vertices(n_x * n_x);
 
     for (size_t i = 0; i < visualized_field.size(); ++i)
     {
@@ -191,7 +200,7 @@ std::vector<float> iterate_potential(
     return new_field;
 }
 
-std::vector<ev::SurfaceData> generate_surface_datas(
+std::vector<std::vector<float>> generate_visualized_field(
     const int n_t,
     const float l_t,
     const size_t n_x,
@@ -207,7 +216,7 @@ std::vector<ev::SurfaceData> generate_surface_datas(
     std::vector<float> A_y(n_x * n_x, 0.0f);
     std::vector<float> A_y_prev(n_x * n_x, 0.0f);
 
-    std::vector<ev::SurfaceData> surface_datas;
+    std::vector<std::vector<float>> visualized_fields;
     const auto start_time = std::chrono::system_clock::now();
     for (int frame = 0; frame != n_t; ++frame)
     {
@@ -224,14 +233,14 @@ std::vector<ev::SurfaceData> generate_surface_datas(
         A_y_prev = A_y;
         A_y = A_y_next;
 
-        surface_datas.push_back(field_to_surface_data(
+        visualized_fields.push_back(potentials_to_visualized_field(
             n_t, l_t, n_x, l_x, c, phi_prev, A_y, A_y_prev_prev
         ));
 
         print_progress(static_cast<float>(frame) / (n_t - 1), start_time);
     }
 
-    return surface_datas;
+    return visualized_fields;
 }
 
 int main(int, char **)
@@ -247,19 +256,23 @@ int main(int, char **)
     const float c = 2.0f;
 
     // Running the simulation.
-    const std::vector<ev::SurfaceData> surface_datas =
-        generate_surface_datas(n_t, l_t, n_x, l_x, c);
+    const std::vector<std::vector<float>> visualized_fields =
+        generate_visualized_field(n_t, l_t, n_x, l_x, c);
 
     // Visualizing the simulation.
-    return visualize_surface_datas(surface_datas);
+    return visualize_field(visualized_fields, n_x);
 }
 
-int visualize_surface_datas(const std::vector<ev::SurfaceData> &surface_datas)
+int visualize_field(
+    const std::vector<std::vector<float>> &visualized_fields, const size_t n_x
+)
 {
-    if (surface_datas.size() == 0)
+    if (visualized_fields.size() == 0)
         return EXIT_FAILURE;
 
-    auto surface = ev::SurfaceVisual::create(surface_datas[0]);
+    auto surface = ev::SurfaceVisual::create(
+        visualized_field_to_surface_data(visualized_fields[0], n_x)
+    );
     if (!surface)
         return EXIT_FAILURE;
     surface.value()->set_ambient_color(glm::vec3(1.0f));
@@ -282,7 +295,7 @@ int visualize_surface_datas(const std::vector<ev::SurfaceData> &surface_datas)
         video_size,
         window_size,
         glm::vec4(1.0f),
-        surface_datas.size(),
+        visualized_fields.size(),
         frame_rate
     );
     if (!framework)
@@ -291,6 +304,10 @@ int visualize_surface_datas(const std::vector<ev::SurfaceData> &surface_datas)
 
     return framework.value()->run(
         [&](const int frame, const int, const float)
-        { surface.value()->set_surface_data(surface_datas[frame]); }
+        {
+            surface.value()->set_surface_data(
+                visualized_field_to_surface_data(visualized_fields[frame], n_x)
+            );
+        }
     );
 }
