@@ -60,7 +60,7 @@ ev::SurfaceData visualized_field_to_surface_data(
 
     for (size_t i = 0; i < visualized_field.size(); ++i)
     {
-        const float v = 100.0f * visualized_field[i];
+        const float v = 20.0f * visualized_field[i] + 0.5f;
         glm::vec4 color(v, v, v, 1.0f);
 
         size_t u = i % n_x;
@@ -165,17 +165,17 @@ std::vector<float> iterate_potential(
             const int y_minus_dy = (y == 0) ? (iwidth - 1) : (y - 1);
             const int y_plus_dy = (y == (iwidth - 1)) ? 0 : (y + 1);
 
-            //const int sponge_r = std::min(
-            //    std::abs(l_x - x * dx),
-            //    std::min(std::abs(y * dx), std::abs(l_x - y * dx))
-            //);
-            //const float sponge_width = 0.1f * l_x;
-            //const float sponge_sigma =
-            //    0.050f *
-            //    std::pow(
-            //        std::max(0.0f, 5.0f * (1.0f - sponge_r / sponge_width)), 3
-            //    );
-            //const float sponge_gamma = sponge_sigma * dt / 2.0f;
+            const int sponge_r = std::min(
+                std::abs(l_x - x * dx),
+                std::min(std::abs(y * dx), std::abs(l_x - y * dx))
+            );
+            const float sponge_width = 0.175f * l_x;
+            const float sponge_sigma =
+                0.00225f *
+                std::pow(
+                    std::max(0.0f, 10.0f * (1.0f - sponge_r / sponge_width)), 2
+                );
+            const float sponge_gamma = sponge_sigma * dt / 2.0f;
 
             // In the calculations, 1/r appear, and at r=0 it should blow up.
             // We could use the L'hopital rule and f(r)=f(-r) assumptions to get
@@ -183,16 +183,15 @@ std::vector<float> iterate_potential(
             // at r=0, and creates some numerical instability waves there.
             const float x_shifted = x + 0.5f;
             new_field[y * iwidth + x] =
-                //(1.0f / (1.0f + sponge_gamma)) *
-                (nu_sq * ((1.0f + 1.0f / (2.0f * x_shifted)) *
-                              field[y * iwidth + x_plus_dx] +
-                          (1.0f - 1.0f / (2.0f * x_shifted)) *
-                              field[y * iwidth + x_minus_dx] +
-                          field[y_minus_dy * iwidth + x] +
-                          field[y_plus_dy * iwidth + x]) +
-                 2.0f * (1.0f - 2.0f * nu_sq) * field[y * iwidth + x] -
-                 //(1.0f - sponge_gamma) *
-                 previous_field[y * iwidth + x]) +
+                (1.0f / (1.0f + sponge_gamma)) *
+                    (nu_sq * ((1.0f + 1.0f / (2.0f * x_shifted)) *
+                                  field[y * iwidth + x_plus_dx] +
+                              (1.0f - 1.0f / (2.0f * x_shifted)) *
+                                  field[y * iwidth + x_minus_dx] +
+                              field[y_minus_dy * iwidth + x] +
+                              field[y_plus_dy * iwidth + x]) +
+                     2.0f * (1.0f - 2.0f * nu_sq) * field[y * iwidth + x] -
+                     (1.0f - sponge_gamma) * previous_field[y * iwidth + x]) +
                 source[y * iwidth + x] * dt * dt * c * c;
         }
     }
@@ -247,11 +246,11 @@ int main(int, char **)
 {
     // Setup parameters of the simulation.
 
-    const int n_t = 500;
-    const float l_t = 200.0f;
+    const int n_t = 1500;
+    const float l_t = 600.0f;
 
-    const size_t n_x = 350;
-    const float l_x = 500.0f;
+    const size_t n_x = 700;
+    const float l_x = 1000.0f;
 
     const float c = 2.0f;
 
