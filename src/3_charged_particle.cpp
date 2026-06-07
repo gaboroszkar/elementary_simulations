@@ -94,7 +94,7 @@ std::vector<float> iterate_potential(
     const float source_phase = std::numbers::pi / 2.0f;
     const float source_v = 0.5f;
     const float source_amp =
-        (t < 0.1f * l_t ? t / (0.1f * l_t) : 1.0f) * 2.0f *
+        (t < 0.1f * l_t ? t / (0.1f * l_t) : 1.0f) * 3.0f *
         (electric_and_not_magnetic_potential
              ? 1.0f
              : source_v * std::cos(source_omega * t + source_phase) / c);
@@ -103,7 +103,7 @@ std::vector<float> iterate_potential(
     const float source_y = l_x / 2.0f;
     const float source_dy =
         source_movement_amp * std::sin(source_omega * t + source_phase);
-    const float source_r = 5.0f;
+    const float source_r = 7.5f;
     std::vector<float> source = std::vector<float>(n_x * n_x);
     for (int x = 0; x != iwidth; ++x)
     {
@@ -125,7 +125,7 @@ std::vector<float> iterate_potential(
                     2
                 )
             );
-            const float sigma = 0.4;
+            const float sigma = 0.3;
             const float sq2 = std::sqrt(2.0f);
             const float sq2pi = std::sqrt(2.0f * std::numbers::pi);
             if (r1 <= source_r)
@@ -156,45 +156,35 @@ std::vector<float> iterate_potential(
             const int y_minus_dy = (y == 0) ? (iwidth - 1) : (y - 1);
             const int y_plus_dy = (y == (iwidth - 1)) ? 0 : (y + 1);
 
-            const int sponge_r = std::min(
-                std::abs(l_x - x * dx),
-                std::min(std::abs(y * dx), std::abs(l_x - y * dx))
-            );
-            const float sponge_width = 0.2f * l_x;
-            const float sponge_sigma =
-                0.050f *
-                std::pow(
-                    std::max(0.0f, 3.0f * (1.0f - sponge_r / sponge_width)), 3
-                );
-            const float sponge_gamma = sponge_sigma * dt / 2.0f;
+            //const int sponge_r = std::min(
+            //    std::abs(l_x - x * dx),
+            //    std::min(std::abs(y * dx), std::abs(l_x - y * dx))
+            //);
+            //const float sponge_width = 0.1f * l_x;
+            //const float sponge_sigma =
+            //    0.050f *
+            //    std::pow(
+            //        std::max(0.0f, 5.0f * (1.0f - sponge_r / sponge_width)), 3
+            //    );
+            //const float sponge_gamma = sponge_sigma * dt / 2.0f;
 
-            if (x == 0)
-            {
-                new_field[y * iwidth + x] =
-                    (1.0f / (1.0f + sponge_gamma)) *
-                        (nu_sq * (4 * field[y * iwidth + x_plus_dx] +
-                                  field[y_minus_dy * iwidth + x] +
-                                  field[y_plus_dy * iwidth + x]) +
-                         2.0f * (1.0f - 3.0f * nu_sq) * field[y * iwidth + x] -
-                         (1.0f - sponge_gamma) *
-                             previous_field[y * iwidth + x]) +
-                    source[y * iwidth + x] * dt * dt * c * c;
-            }
-            else
-            {
-                new_field[y * iwidth + x] =
-                    (1.0f / (1.0f + sponge_gamma)) *
-                        (nu_sq * ((1.0f + 1.0f / (2.0f * x)) *
-                                      field[y * iwidth + x_plus_dx] +
-                                  (1.0f - 1.0f / (2.0f * x)) *
-                                      field[y * iwidth + x_minus_dx] +
-                                  field[y_minus_dy * iwidth + x] +
-                                  field[y_plus_dy * iwidth + x]) +
-                         2.0f * (1.0f - 2.0f * nu_sq) * field[y * iwidth + x] -
-                         (1.0f - sponge_gamma) *
-                             previous_field[y * iwidth + x]) +
-                    source[y * iwidth + x] * dt * dt * c * c;
-            }
+            // In the calculations, 1/r appear, and at r=0 it should blow up.
+            // We could use the L'hopital rule and f(r)=f(-r) assumptions to get
+            // a different update function at r=0, but that solution is very unstable,
+            // at r=0, and creates some numerical instability waves there.
+            const float x_shifted = x + 0.5f;
+            new_field[y * iwidth + x] =
+                //(1.0f / (1.0f + sponge_gamma)) *
+                (nu_sq * ((1.0f + 1.0f / (2.0f * x_shifted)) *
+                              field[y * iwidth + x_plus_dx] +
+                          (1.0f - 1.0f / (2.0f * x_shifted)) *
+                              field[y * iwidth + x_minus_dx] +
+                          field[y_minus_dy * iwidth + x] +
+                          field[y_plus_dy * iwidth + x]) +
+                 2.0f * (1.0f - 2.0f * nu_sq) * field[y * iwidth + x] -
+                 //(1.0f - sponge_gamma) *
+                 previous_field[y * iwidth + x]) +
+                source[y * iwidth + x] * dt * dt * c * c;
         }
     }
 
