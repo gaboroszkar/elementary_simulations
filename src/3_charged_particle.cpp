@@ -94,9 +94,9 @@ std::vector<float> iterate_potential(
     const int sponge_width
 )
 {
-    // In Gaussian units the equations are
-    // d_mu d^mu phi = 4 * pi * rho
-    // d_mu d^mu A = 4 * pi * j / c.
+    // In (slightly modified) Gaussian units the equations are
+    // d_mu d^mu phi = rho
+    // d_mu d^mu A = j / c.
     // Note, here x means the radial coordinate.
 
     const float dt = l_t / n_t;
