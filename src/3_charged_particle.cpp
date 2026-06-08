@@ -67,7 +67,7 @@ ev::SurfaceData visualized_field_to_surface_data(
 
     for (size_t i = 0; i < visualized_field.size(); ++i)
     {
-        //const float v = 20.0f * visualized_field[i] + 0.5f;
+        //const float v = 40.0f * visualized_field[i] + 0.5f;
         const float v = 20000.0f * visualized_field[i];
         glm::vec4 color(v, v, v, 1.0f);
 
@@ -293,8 +293,8 @@ int visualize_field(
     std::string file_name("3_charged_particle.mp4");
     unsigned int bit_rate = 10000000;
     unsigned int frame_rate = 30;
-    glm::uvec2 video_size(1920, 1080);
-    glm::uvec2 window_size(1280, 720);
+    glm::uvec2 video_size(1080, 1080);
+    glm::uvec2 window_size(720, 720);
     auto framework = Framework::create(
         file_name,
         bit_rate,
