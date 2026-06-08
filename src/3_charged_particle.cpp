@@ -20,8 +20,8 @@ std::vector<float> potentials_to_visualized_field(
     const float c,
     const int sponge_width,
     const std::vector<float> &phi_prev,
-    const std::vector<float> &A_y,
-    const std::vector<float> &A_y_prev_prev
+    const std::vector<float> &A_z,
+    const std::vector<float> &A_z_prev_prev
 )
 {
     const float dt = l_t / n_t;
@@ -33,26 +33,26 @@ std::vector<float> potentials_to_visualized_field(
     const int iwidth = n_r;
     for (int r = 0; r != iwidth - 2 * sponge_width; ++r)
     {
-        for (int y = sponge_width; y != iwidth - sponge_width; ++y)
+        for (int z = sponge_width; z != iwidth - sponge_width; ++z)
         {
             const int r_minus_dr = (r == 0) ? 0 : (r - 1);
             const int r_plus_dr = (r == (iwidth - 1)) ? (iwidth - 1) : (r + 1);
-            const int y_minus_dy = (y == 0) ? (iwidth - 1) : (y - 1);
-            const int y_plus_dy = (y == (iwidth - 1)) ? 0 : (y + 1);
-            const float E_r = -(phi_prev[y * iwidth + r_plus_dr] -
-                                phi_prev[y * iwidth + r_minus_dr]) /
+            const int z_minus_dz = (z == 0) ? (iwidth - 1) : (z - 1);
+            const int z_plus_dz = (z == (iwidth - 1)) ? 0 : (z + 1);
+            const float E_r = -(phi_prev[z * iwidth + r_plus_dr] -
+                                phi_prev[z * iwidth + r_minus_dr]) /
                               (2 * dr);
-            const float E_y =
-                -((phi_prev[y_plus_dy * iwidth + r] -
-                   phi_prev[y_minus_dy * iwidth + r]) /
+            const float E_z =
+                -((phi_prev[z_plus_dz * iwidth + r] -
+                   phi_prev[z_minus_dz * iwidth + r]) /
                       (2 * dr) +
-                  (A_y[y * iwidth + r] - A_y_prev_prev[y * iwidth + r]) /
+                  (A_z[z * iwidth + r] - A_z_prev_prev[z * iwidth + r]) /
                       (2 * dt) / c);
             const int visualized_field_index =
-                (y - sponge_width) * (iwidth - 2 * sponge_width) + r;
+                (z - sponge_width) * (iwidth - 2 * sponge_width) + r;
             //visualized_field[visualized_field_index] = E_r;
-            //visualized_field[visualized_field_index] = E_y;
-            visualized_field[visualized_field_index] = E_r * E_r + E_y * E_y;
+            //visualized_field[visualized_field_index] = E_z;
+            visualized_field[visualized_field_index] = E_r * E_r + E_z * E_z;
         }
     }
 
@@ -73,8 +73,8 @@ ev::SurfaceData visualized_field_to_surface_data(
 
         size_t u = i % n_r;
         float r = 2.0f * static_cast<float>(u) / (n_r - 1) - 1.0f;
-        float y = -2.0f * static_cast<float>((i - u) / n_r) / (n_r - 1) + 1.0f;
-        glm::vec3 position(r, y, 0.0f);
+        float z = -2.0f * static_cast<float>((i - u) / n_r) / (n_r - 1) + 1.0f;
+        glm::vec3 position(r, z, 0.0f);
         vertices[i] = ev::Vertex(position, color);
     }
 
@@ -116,36 +116,36 @@ std::vector<float> iterate_potential(
              : source_v * std::cos(source_omega * t + source_phase) / c);
     const float source_movement_amp = source_v / source_omega;
     const float source_r = 0.0f;
-    const float source_y = l_r / 2.0f;
-    const float source_dy =
+    const float source_z = l_r / 2.0f;
+    const float source_dz =
         source_movement_amp * std::sin(source_omega * t + source_phase);
     const float source_size = 7.5f;
     std::vector<float> source = std::vector<float>(n_r * n_r);
     for (int r = 0; r != iwidth; ++r)
     {
-        for (int y = 0; y != iwidth; ++y)
+        for (int z = 0; z != iwidth; ++z)
         {
             const float r1 = std::sqrt(
                 std::pow(source_r - r * dr, 2) +
-                std::pow((source_y + source_dy) - y * dr, 2)
+                std::pow((source_z + source_dz) - z * dr, 2)
             );
             const float r2 = std::sqrt(
                 std::pow(source_r - r * dr, 2) +
-                std::pow((source_y - source_dy) - y * dr, 2)
+                std::pow((source_z - source_dz) - z * dr, 2)
             );
             const float sigma = 0.3;
             const float sq2 = std::sqrt(2.0f);
             const float sq2pi = std::sqrt(2.0f * std::numbers::pi);
             if (r1 <= source_size)
             {
-                source[y * iwidth + r] +=
+                source[z * iwidth + r] +=
                     source_amp *
                     std::exp(-std::pow(r1 / source_size / (sq2 * sigma), 2)) /
                     (sigma * sq2pi);
             }
             if (r2 <= source_size)
             {
-                source[y * iwidth + r] -=
+                source[z * iwidth + r] -=
                     (electric_and_not_magnetic_potential ? 1.0f : -1.0f) *
                     source_amp *
                     std::exp(-std::pow(r2 / source_size / (sq2 * sigma), 2)) /
@@ -157,16 +157,16 @@ std::vector<float> iterate_potential(
     std::vector<float> new_field = std::vector<float>(n_r * n_r);
     for (int r = 0; r != iwidth; ++r)
     {
-        for (int y = 0; y != iwidth; ++y)
+        for (int z = 0; z != iwidth; ++z)
         {
             const int r_minus_dr = (r == 0) ? 0 : (r - 1);
             const int r_plus_dr = (r == (iwidth - 1)) ? (iwidth - 1) : (r + 1);
-            const int y_minus_dy = (y == 0) ? (iwidth - 1) : (y - 1);
-            const int y_plus_dy = (y == (iwidth - 1)) ? 0 : (y + 1);
+            const int z_minus_dz = (z == 0) ? (iwidth - 1) : (z - 1);
+            const int z_plus_dz = (z == (iwidth - 1)) ? 0 : (z + 1);
 
             const int sponge_r = std::min(
                 std::abs(l_r - r * dr),
-                std::min(std::abs(y * dr), std::abs(l_r - y * dr))
+                std::min(std::abs(z * dr), std::abs(l_r - z * dr))
             );
             const float sponge_sigma =
                 0.00225f *
@@ -183,17 +183,17 @@ std::vector<float> iterate_potential(
             // a different update function at r=0, but that solution is very unstable,
             // at r=0, and creates some numerical instability waves there.
             const float r_shifted = r + 0.5f;
-            new_field[y * iwidth + r] =
+            new_field[z * iwidth + r] =
                 (1.0f / (1.0f + sponge_gamma)) *
                     (nu_sq * ((1.0f + 1.0f / (2.0f * r_shifted)) *
-                                  field[y * iwidth + r_plus_dr] +
+                                  field[z * iwidth + r_plus_dr] +
                               (1.0f - 1.0f / (2.0f * r_shifted)) *
-                                  field[y * iwidth + r_minus_dr] +
-                              field[y_minus_dy * iwidth + r] +
-                              field[y_plus_dy * iwidth + r]) +
-                     2.0f * (1.0f - 2.0f * nu_sq) * field[y * iwidth + r] -
-                     (1.0f - sponge_gamma) * previous_field[y * iwidth + r]) +
-                source[y * iwidth + r] * dt * dt * c * c;
+                                  field[z * iwidth + r_minus_dr] +
+                              field[z_minus_dz * iwidth + r] +
+                              field[z_plus_dz * iwidth + r]) +
+                     2.0f * (1.0f - 2.0f * nu_sq) * field[z * iwidth + r] -
+                     (1.0f - sponge_gamma) * previous_field[z * iwidth + r]) +
+                source[z * iwidth + r] * dt * dt * c * c;
         }
     }
 
@@ -214,8 +214,8 @@ std::vector<std::vector<float>> generate_visualized_field(
     std::vector<float> phi_prev(n_r * n_r, 0.0f);
 
     // Magnetic vector potential.
-    std::vector<float> A_y(n_r * n_r, 0.0f);
-    std::vector<float> A_y_prev(n_r * n_r, 0.0f);
+    std::vector<float> A_z(n_r * n_r, 0.0f);
+    std::vector<float> A_z_prev(n_r * n_r, 0.0f);
 
     std::vector<std::vector<float>> visualized_fields;
     const auto start_time = std::chrono::system_clock::now();
@@ -229,15 +229,15 @@ std::vector<std::vector<float>> generate_visualized_field(
         phi_prev = phi;
         phi = phi_next;
 
-        std::vector<float> A_y_next = iterate_potential(
-            n_t, l_t, n_r, l_r, c, t, A_y, A_y_prev, false, sponge_width
+        std::vector<float> A_z_next = iterate_potential(
+            n_t, l_t, n_r, l_r, c, t, A_z, A_z_prev, false, sponge_width
         );
-        std::vector<float> A_y_prev_prev = A_y_prev;
-        A_y_prev = A_y;
-        A_y = A_y_next;
+        std::vector<float> A_z_prev_prev = A_z_prev;
+        A_z_prev = A_z;
+        A_z = A_z_next;
 
         visualized_fields.push_back(potentials_to_visualized_field(
-            n_t, l_t, n_r, l_r, c, sponge_width, phi_prev, A_y, A_y_prev_prev
+            n_t, l_t, n_r, l_r, c, sponge_width, phi_prev, A_z, A_z_prev_prev
         ));
 
         print_progress(static_cast<float>(frame) / (n_t - 1), start_time);
