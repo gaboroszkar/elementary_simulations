@@ -213,7 +213,7 @@ void Framework::setup_events()
     this->window->on_keyboard_event(
         [&](const ev::EventAction action,
             const ev::Key key,
-            const ev::ModifierKey)
+            const ev::ModifierKey modifier_keys)
         {
             if (action == ev::EventAction::press && key == ev::Key::q)
             {
@@ -237,7 +237,7 @@ void Framework::setup_events()
                         this->recording = Recording(
                             {video.value(), std::chrono::system_clock::now()}
                         );
-                        this->frame = 0;
+                        //this->frame = 0;
                         this->slider_drag = false;
                         this->slider->color_0 =
                             glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
@@ -253,6 +253,33 @@ void Framework::setup_events()
                 {
                     std::cout << std::endl;
                     this->recording = std::nullopt;
+                }
+            }
+            else if (action == ev::EventAction::press &&
+                     (key == ev::Key::left || key == ev::Key::right))
+            {
+                if (!this->recording)
+                {
+                    int leap = 1;
+                    if (static_cast<int>(modifier_keys) &
+                        static_cast<int>(ev::ModifierKey::shift))
+                        leap *= 10;
+                    if (static_cast<int>(modifier_keys) &
+                        static_cast<int>(ev::ModifierKey::control))
+                        leap *= 100;
+                    if (key == ev::Key::left)
+                        leap *= -1;
+                    this->frame = std::min(
+                        std::max(0, this->frame + leap), this->frames - 1
+                    );
+                    std::cout << "Jumped to frame " << this->frame << "."
+                              << std::endl;
+                }
+                else
+                {
+                    std::cout
+                        << "Generating video, jumping to frames is not allowed."
+                        << std::endl;
                 }
             }
         }
