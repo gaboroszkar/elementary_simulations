@@ -97,6 +97,8 @@ std::vector<float> iterate_potential(
     // In (slightly modified) Gaussian units the equations are
     // d_mu d^mu phi = rho
     // d_mu d^mu A = j / c.
+    // (1/c^2 d^2/dt^2 - d^2/dx^2) phi = source.
+    // (1/c^2 d^2/dt^2 - d^2/dx^2) A = 1/c source.
 
     const float dt = l_t / n_t;
 
