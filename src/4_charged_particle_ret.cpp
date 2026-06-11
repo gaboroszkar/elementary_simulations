@@ -45,10 +45,10 @@ std::vector<float> potentials_to_visualized_field(
                       (2 * dr) +
                   (A_z[z * iwidth + r] - A_z_prev_prev[z * iwidth + r]) /
                       (2 * dt) / c);
+            //visualized_field[z * iwidth + r] = phi_prev[z * iwidth + r];
             //visualized_field[z * iwidth + r] = E_r;
             //visualized_field[z * iwidth + r] = E_z;
-            //visualized_field[z * iwidth + r] = E_r * E_r + E_z * E_z;
-            visualized_field[z * iwidth + r] = phi_prev[z * iwidth + r];
+            visualized_field[z * iwidth + r] = E_r * E_r + E_z * E_z;
         }
     }
 
@@ -63,10 +63,9 @@ ev::SurfaceData visualized_field_to_surface_data(
 
     for (size_t i = 0; i < visualized_field.size(); ++i)
     {
+        //const float v = 0.75f * visualized_field[i];
         //const float v = 40.0f * visualized_field[i] + 0.5f;
-        //const float v = 20000.0f * visualized_field[i];
-
-        const float v = 0.75f * visualized_field[i];
+        const float v = 20000.0f * visualized_field[i];
 
         glm::vec4 color(v, v, v, 1.0f);
 
@@ -81,14 +80,10 @@ ev::SurfaceData visualized_field_to_surface_data(
 }
 
 std::vector<float> iterate_potential(
-    const int n_t,
-    const float l_t,
     const size_t n_r,
     const float l_r,
     const float c,
     const float t,
-    std::vector<float> field,
-    std::vector<float> previous_field,
     bool electric_and_not_magnetic_potential
 )
 {
@@ -101,21 +96,13 @@ std::vector<float> iterate_potential(
     // phi = 1/4pi * int rho(x', t') / r' d^x,
     // A = 1/4pic * int j(x', t') / r' d^x.
 
-    const float dt = l_t / n_t;
-
     const float dr = l_r / n_r;
-    const float nu = c * dt / dr; // Courant number.
-    const float nu_sq = nu * nu;
 
     const int iwidth = n_r;
 
     const float source_omega = 0.1f;
     const float source_phase = std::numbers::pi / 2.0f;
     const float source_v = 0.5f;
-    const float source_amp =
-        3.0f * (electric_and_not_magnetic_potential
-                    ? 1.0f
-                    : source_v * std::cos(source_omega * t + source_phase) / c);
     const float source_movement_amp = source_v / source_omega;
     const float source_z = l_r / 2.0f;
     const float source_size = 7.5f;
@@ -174,6 +161,15 @@ std::vector<float> iterate_potential(
                             const float delay = distance / c;
                             const float t_delayed = t - delay;
 
+                            const float source_amp =
+                                3.0f * (electric_and_not_magnetic_potential
+                                            ? 1.0f
+                                            : source_v *
+                                                  std::cos(
+                                                      source_omega * t_delayed +
+                                                      source_phase
+                                                  ) /
+                                                  c);
                             const float source_center_z_delayed =
                                 source_z +
                                 source_movement_amp *
@@ -210,12 +206,11 @@ std::vector<float> iterate_potential(
                                 std::exp(
                                     -std::pow(r_source / (sq2 * sigma_prime), 2)
                                 ) *
-                                (r_source * dr +
-                                 (std::pow(dr, 3) / 24.0f) *
-                                     (std::pow(r_source, 3) /
-                                          std::pow(sigma_prime, 4) -
-                                      3.0f * r_source /
-                                          std::pow(sigma_prime, 2)));
+                                r_source * dr *
+                                (1.0f + (std::pow(dr, 2) / 24.0f) *
+                                            (std::pow(r_source, 2) /
+                                                 std::pow(sigma_prime, 4) -
+                                             3.0f / std::pow(sigma_prime, 2)));
 
                             const float source_in_volume =
                                 source_z_theta_density * dr / num_theta;
@@ -255,13 +250,11 @@ std::vector<std::vector<float>> generate_visualized_field(
     {
         const float t = static_cast<float>(frame) * l_t / (n_t - 1);
 
-        std::vector<float> phi_next =
-            iterate_potential(n_t, l_t, n_r, l_r, c, t, phi, phi_prev, true);
+        std::vector<float> phi_next = iterate_potential(n_r, l_r, c, t, true);
         phi_prev = phi;
         phi = phi_next;
 
-        std::vector<float> A_z_next =
-            iterate_potential(n_t, l_t, n_r, l_r, c, t, A_z, A_z_prev, false);
+        std::vector<float> A_z_next = iterate_potential(n_r, l_r, c, t, false);
         std::vector<float> A_z_prev_prev = A_z_prev;
         A_z_prev = A_z;
         A_z = A_z_next;
@@ -280,20 +273,11 @@ int main(int, char **)
 {
     // Setup parameters of the simulation.
 
-    //const int n_t = 1500;
-    //const float l_t = 600.0f;
-    const int n_t = 30;
-    const float l_t = 12.0f;
+    const int n_t = 5;
+    const float l_t = 300.0f;
 
-    //const size_t n_r = 700;
-    //const float l_r = 1000.0f;
-    //const int sponge_width = 120;
-
-    //const size_t n_r = 700 - 2 * 120;
-    //const float l_r = 1000.0f * n_r / 700;
-    //const size_t n_r = 460;
-    const size_t n_r = 300;
-    const float l_r = 657.0f;
+    const size_t n_r = 700;
+    const float l_r = 1200.0f;
 
     const float c = 2.0f;
 

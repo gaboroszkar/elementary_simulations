@@ -256,14 +256,14 @@ int main(int, char **)
     // Setup parameters of the simulation.
 
     const int n_t = 1500;
-    const float l_t = 600.0f;
+    const float l_t = 300.0f;
 
     const size_t n_r = 700;
-    const float l_r = 1000.0f;
+    const float l_r = 1200.0f;
 
     const float c = 2.0f;
 
-    const int sponge_width = 120;
+    const int sponge_width = 0;
 
     // Running the simulation.
     const std::vector<std::vector<float>> visualized_fields =
