@@ -119,39 +119,6 @@ std::vector<float> iterate_potential(
     const float source_movement_amp = source_v / source_omega;
     const float source_z = l_r / 2.0f;
     const float source_size = 7.5f;
-    //std::vector<float> source = std::vector<float>(n_r * n_r);
-    //for (int r = 0; r != iwidth; ++r)
-    //{
-    //    for (int z = 0; z != iwidth; ++z)
-    //    {
-    //        const float r1 = std::sqrt(
-    //            std::pow(source_r - r * dr, 2) +
-    //            std::pow((source_z + source_dz) - z * dr, 2)
-    //        );
-    //        const float r2 = std::sqrt(
-    //            std::pow(source_r - r * dr, 2) +
-    //            std::pow((source_z - source_dz) - z * dr, 2)
-    //        );
-    //        const float sigma = 0.3;
-    //        const float sq2 = std::sqrt(2.0f);
-    //        const float sq2pi = std::sqrt(2.0f * std::numbers::pi);
-    //        if (r1 <= source_size)
-    //        {
-    //            source[z * iwidth + r] +=
-    //                source_amp *
-    //                std::exp(-std::pow(r1 / source_size / (sq2 * sigma), 2)) /
-    //                (sigma * sq2pi);
-    //        }
-    //        if (r2 <= source_size)
-    //        {
-    //            source[z * iwidth + r] -=
-    //                (electric_and_not_magnetic_potential ? 1.0f : -1.0f) *
-    //                source_amp *
-    //                std::exp(-std::pow(r2 / source_size / (sq2 * sigma), 2)) /
-    //                (sigma * sq2pi);
-    //        }
-    //    }
-    //}
 
     std::vector<float> new_field = std::vector<float>(n_r * n_r);
     for (int r_i = 0; r_i != iwidth; ++r_i)
@@ -213,33 +180,45 @@ std::vector<float> iterate_potential(
                                     std::sin(
                                         source_omega * t_delayed + source_phase
                                     );
-                            // Here we need to take into account the r which is
-                            // unshifted by 0.5f, because that's how we setup the
-                            // values in 3_charged_particle.cpp, and
-                            // we want to be consistent with it.
-                            const float distance_from_source_center = std::sqrt(
-                                std::pow(r_source_i * dr, 2) +
-                                std::pow(source_center_z_delayed - z_source, 2)
-                            );
                             const float sigma = 0.3;
                             const float sq2 = std::sqrt(2.0f);
                             const float sq2pi =
                                 std::sqrt(2.0f * std::numbers::pi);
-                            const float source_density =
-                                source_amp *
-                                std::exp(-std::pow(
-                                    distance_from_source_center / source_size /
-                                        (sq2 * sigma),
-                                    2
-                                )) /
-                                (sigma * sq2pi);
+                            const float sigma_prime = source_size * sigma;
+                            // Making charge calculation more precise,
+                            // because for small grid sizes, the simple calculation converges slowly.
+                            // This is the overall charge for a ring around r with dr width.
+                            // The overall charge around a ring is dQ = rho(r) * 2*pi*r * dr = f(r) * dr,
+                            // and we can approximate f by f(r) = f(r_0) + f'(r_0) * (r-r_0) + 1/2 * f''(r_0) * (r-r_0)^2.
+                            // Then dQ can also be approximated.
+                            // dQ = int_{r_0 - dr/2}^{r_0 + dr/2} f(r_0) dr
+                            //      + int_{r_0 - dr/2}^{r_0 + dr/2} f'(r_0) * (r-r_0) dr
+                            //      + int_{r_0 - dr/2}^{r_0 + dr/2} 1/2 f''(r_0) * (r-r_0)^2 dr =
+                            //    = f(r_0) * dr
+                            //      + 0 (antisymmetric, disappears)
+                            //      + 1/24 * f''(r_0) dr^3.
+                            // The overall charge in the small dr, dz, dtheta region is
+                            // Q = dQ * dz * dtheta (we've already accounted for dr).
+                            const float source_z_theta_density =
+                                (2.0f * std::numbers::pi * source_amp *
+                                 std::exp(-std::pow(
+                                     (source_center_z_delayed - z_source) /
+                                         (sq2 * sigma_prime),
+                                     2
+                                 )) /
+                                 (sigma * sq2pi)) *
+                                std::exp(
+                                    -std::pow(r_source / (sq2 * sigma_prime), 2)
+                                ) *
+                                (r_source * dr +
+                                 (std::pow(dr, 3) / 24.0f) *
+                                     (std::pow(r_source, 3) /
+                                          std::pow(sigma_prime, 4) -
+                                      3.0f * r_source /
+                                          std::pow(sigma_prime, 2)));
 
-                            const float source_volume =
-                                (2.0f * std::numbers::pi * r_source * dr /
-                                 num_theta) *
-                                dr;
                             const float source_in_volume =
-                                source_volume * source_density;
+                                source_z_theta_density * dr / num_theta;
 
                             new_field[z_i * iwidth + r_i] +=
                                 source_in_volume / distance /

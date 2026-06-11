@@ -50,6 +50,7 @@ std::vector<float> potentials_to_visualized_field(
                       (2 * dt) / c);
             const int visualized_field_index =
                 (z - sponge_width) * (iwidth - 2 * sponge_width) + r;
+            //visualized_field[visualized_field_index] = phi_prev[z * iwidth + r];
             //visualized_field[visualized_field_index] = E_r;
             //visualized_field[visualized_field_index] = E_z;
             visualized_field[visualized_field_index] = E_r * E_r + E_z * E_z;
@@ -67,6 +68,7 @@ ev::SurfaceData visualized_field_to_surface_data(
 
     for (size_t i = 0; i < visualized_field.size(); ++i)
     {
+        //const float v = 0.75f * visualized_field[i];
         //const float v = 40.0f * visualized_field[i] + 0.5f;
         const float v = 20000.0f * visualized_field[i];
         glm::vec4 color(v, v, v, 1.0f);
@@ -127,12 +129,13 @@ std::vector<float> iterate_potential(
     {
         for (int z = 0; z != iwidth; ++z)
         {
+            // The grid's first r point is at 0.5 dr.
             const float r1 = std::sqrt(
-                std::pow(source_r - r * dr, 2) +
+                std::pow(source_r - (r + 0.5f) * dr, 2) +
                 std::pow((source_z + source_dz) - z * dr, 2)
             );
             const float r2 = std::sqrt(
-                std::pow(source_r - r * dr, 2) +
+                std::pow(source_r - (r + 0.5f) * dr, 2) +
                 std::pow((source_z - source_dz) - z * dr, 2)
             );
             const float sigma = 0.3;
